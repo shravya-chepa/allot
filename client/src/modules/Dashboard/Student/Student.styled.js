@@ -119,6 +119,7 @@ export const StudentDashboardWrapper = styled.div`
   width: 100%;
   display: flex;
   justify-content: space-between;
+  gap: 50px;
 
   @media only screen and (max-width: 768px) {
     flex-direction: column !important;

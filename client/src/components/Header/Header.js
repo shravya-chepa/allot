@@ -11,6 +11,7 @@ import AppLogo from "../../assets/images/logo.png";
 
 const Header = () => {
   const history = useHistory();
+  const isLoggedIn = Boolean(localStorage.getItem("token"))
 
   const handleSignOut = () => {
     localStorage.removeItem("token");
@@ -26,7 +27,11 @@ const Header = () => {
             <img src={AppLogo} alt="logo" width="80" />
           </a>
         </LogoWrapper>
-        <SignOutButton onClick={handleSignOut}>Sign Out</SignOutButton>
+        {
+          isLoggedIn && (
+            <SignOutButton onClick={handleSignOut}>Sign Out</SignOutButton>
+          )
+        }
       </HeaderContent>
     </HeaderStyle>
   );
