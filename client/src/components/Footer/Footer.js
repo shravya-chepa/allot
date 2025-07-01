@@ -6,8 +6,8 @@ const Footer = () => {
     <FooterStyle>
       <div className="footer__info-block">
         <div className="copyryght-block">
-          <span className="copyright">© 2024 San Diego State University. </span>
-          <span>All Rights Reserved</span>
+          <span className="copyright">©2024 </span>
+          <span>All Rights Reserved.</span>
         </div>
       </div>
     </FooterStyle>
