@@ -1,0 +1,14 @@
+steps:
+- name: 'gcr.io/cloud-builders/git'
+  args: ['clone', 'https://github.com/Office-Hours-Schedular/CN-Project-Frontend.git']
+  
+- name: 'gcr.io/cloud-builders/npm'
+  args: ['install']
+  dir: 'CN-Project-Frontend'
+  
+- name: 'gcr.io/cloud-builders/npm'
+  args: ['run', 'build']
+  dir: 'CN-Project-Frontend'
+  
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['app', 'deploy', 'CN-Project-Frontend/app.yaml']
