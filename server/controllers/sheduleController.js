@@ -8,10 +8,13 @@ const { isAfter, isBefore, isEqual, add } = require("date-fns");
 const ProfessorItem = require("../models/professorItem");
 const StudentItem = require("../models/studentItem");
 
+const sendEmail = require("../utilities/sendEmail");
+
 const sendError = (res, error, status = 404) =>
   res.status(status).send({ error });
 
 const { OCCUPATION_STATUS } = require("../utilities/constants");
+const User = require("../models/userItem.js");
 
 const professorItems = [];
 const studentItems = [];
@@ -69,54 +72,6 @@ exports.addProfessorItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_INVALID_START_TIME);
     }
 
-    // IF RECURRING CREATE MEETINGS ON THE SAME DAY FOR 4 WEEKS
-    // if (recurring) {
-    //     const date_created = new Date().toISOString()
-    //     const professorTimeObjects = [{
-    //         _id: `PROFESSOR-ITEM-${uuidv4()}`,
-    //         parent_id: `PROFESSOR-ITEM-PARENT-${uuidv4()}`,
-    //         professor_id: userId,
-    //         itemName,
-    //         startTime,
-    //         endTime,
-    //         date_created: date_created,
-    //         active: ACTIVE.ACTIVE,
-    //         recurring: false
-    //     }]
-
-    //     for (const _ of [...Array(4).keys()]) {
-    //         const timeObject = professorTimeObjects[professorTimeObjects.length - 1]
-    //         const newStartTime = add(new Date(timeObject.startTime), {days: 7})
-    //         const newEndTime = add(new Date(timeObject.endTime), {days: 7})
-    //         const newId = `PROFESSOR-ITEM-${uuidv4()}`
-    //         professorTimeObjects.push({
-    //             ...timeObject,
-    //             _id: newId,
-    //             startTime: newStartTime.toISOString(),
-    //             endTime: newEndTime
-    //         })
-    //     }
-
-    //     professorItems.push(...professorTimeObjects)
-
-    //     return res.send({professorTimeObjects: professorTimeObjects})
-    // }
-
-    // const professorTimeObjects = {
-    //     _id: `PROFESSOR-ITEM-${uuidv4()}`,
-    //     parent_id: `PROFESSOR-ITEM-PARENT-${uuidv4()}`,
-    //     professor_id: userId,
-    //     itemName,
-    //     startTime,
-    //     endTime,
-    //     date_created: new Date().toISOString(),
-    //     active: ACTIVE.ACTIVE,
-    //     recurring: recurring
-    // }
-    // professorItems.push(professorTimeObjects)
-    // res.send({professorTimeObjects: professorTimeObjects});
-
-    // --------------
     const professorItem = new ProfessorItem({
       _id: `PROFESSOR-ITEM-${uuidv4()}`,
       parent_id: `PROFESSOR-ITEM-PARENT-${uuidv4()}`,
@@ -183,7 +138,6 @@ exports.removeProfessorItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_MISSING_FIELD_ITEM_ID);
     }
 
-    // const itemIdx = professorItems.findIndex(x => x._id === itemId)
     const itemIdx = await ProfessorItem.findOne({
       _id: itemId,
       professor_id: userId,
@@ -191,25 +145,16 @@ exports.removeProfessorItem = async (req, res) => {
     if (!itemIdx || itemIdx === -1) {
       return sendError(res, ERRORS.ERROR_ITEM_NOT_FOUND);
     }
-    // if (professorItems[itemIdx].professor_id !== userId) {
-    //     return sendError(res, ERRORS.ERROR_ITEM_CANNOT_BE_DELETED)
-    // }
+
     if (itemIdx.professor_id.toString() !== userId) {
       return sendError(res, ERRORS.ERROR_ITEM_CANNOT_BE_DELETED);
     }
 
-    // professorItems[itemIdx] = {...professorItems[itemIdx], active: ACTIVE.NOT_ACTIVE}
     await ProfessorItem.updateOne(
       { _id: itemId },
       { active: ACTIVE.NOT_ACTIVE }
     );
 
-    // REMOVE STUDENT ITEMS CREATED ON DELETED PROFESSOR ITEM
-    // const studItems = studentItems.filter(x => x.professor_item_id ===  professorItems[itemIdx]._id)
-    // studItems.forEach(x => {
-    //     const idx = studentItems.findIndex(y => y._id === x._id)
-    //     studentItems[idx] = {...studentItems[idx], active: ACTIVE.NOT_ACTIVE}
-    // })
     await StudentItem.updateMany(
       { professor_item_id: itemIdx },
       { active: ACTIVE.NOT_ACTIVE }
@@ -244,7 +189,6 @@ exports.removeProfessorRecurringItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_MISSING_FIELD_ITEM_PARENT_ID);
     }
 
-    // const items = professorItems.filter(x => x.parent_id === itemParentId)
     const items = await ProfessorItem.find({ parent_id: itemParentId });
 
     if (items.length === 0) {
@@ -255,17 +199,6 @@ exports.removeProfessorRecurringItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_ITEM_CANNOT_BE_DELETED);
     }
 
-    // items.forEach(x => {
-    //     const idx = professorItems.findIndex(y => y._id === x._id)
-    //     professorItems[idx] = {...professorItems[idx], active: ACTIVE.NOT_ACTIVE}
-
-    //     // REMOVE STUDENT ITEMS CREATED ON DELETED PROFESSOR ITEM
-    //     const studItems = studentItems.filter(x => x.professor_item_id ===  professorItems[idx]._id)
-    //     studItems.forEach(xx => {
-    //         const idxx = studentItems.findIndex(yy => yy._id === xx._id)
-    //         studentItems[idxx] = {...studentItems[idxx], active: ACTIVE.NOT_ACTIVE}
-    //     })
-    // })
     for (const item of items) {
       await ProfessorItem.updateOne({ _id: item._id }, { active: false });
 
@@ -297,13 +230,11 @@ exports.getProfAndStudItems = async (req, res) => {
       return sendError(res, ERRORS.ERROR_INVALID_TOKEN);
     }
 
-    // const profItems = professorItems.filter(item => item.professor_id === professorId && item.active === ACTIVE.ACTIVE)
     const profItems = await ProfessorItem.find({
       professor_id: professorId,
       active: ACTIVE.ACTIVE,
     });
 
-    // const studItems = studentItems.filter(item => item.professor_id === professorId && item.active === ACTIVE.ACTIVE)
     const studItems = await StudentItem.find({
       professor_id: professorId,
       active: ACTIVE.ACTIVE,
@@ -370,14 +301,12 @@ exports.addStudentItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_INVALID_START_TIME);
     }
 
-    // const profItem = professorItems.find(x => x._id === professorItemId)
     const profItem = await ProfessorItem.findById(professorItemId);
     if (!profItem) {
       console.log("NO SUCH ITEM");
       return sendError(res, ERRORS.ERROR_INVALID_PROFESSOR_ITEM_ID);
     }
 
-    // const studItems = studentItems.filter(x => x.professor_item_id === professorItemId && x.active === ACTIVE.ACTIVE)
     const studItems = await StudentItem.find({
       professor_item_id: professorItemId,
       active: ACTIVE.ACTIVE,
@@ -386,8 +315,6 @@ exports.addStudentItem = async (req, res) => {
     // CHECK if date between prof item
     profDateStart = new Date(profItem.startTime);
     profDateEnd = new Date(profItem.endTime);
-
-    // TODO: REWRITE THIS TO MAKE IT MORE READABLE
 
     // FIRST CHECK IF THE NEW TIME IS BETWEEN THE PROFESSORS AVAILABLE TIME
     if (
@@ -409,21 +336,6 @@ exports.addStudentItem = async (req, res) => {
           );
         })
       ) {
-        // const studentTimeObject = {
-        //     _id: `STUDENT-ITEM-${uuidv4()}`,
-        //     professor_id: profItem.professor_id,
-        //     professor_item_id: professorItemId,
-        //     student_id: userId,
-        //     student_name: verifiedToken.user.name,
-        //     student_last_name: verifiedToken.user.lastname,
-        //     student_email: verifiedToken.user.email,
-        //     startTime: newItemStartTime,
-        //     endTime: newItemEndTime,
-        //     date_created: new Date().toISOString(),
-        //     active: ACTIVE.ACTIVE
-        // }
-        // studentItems.push(studentTimeObject)
-
         const studentTimeObject = new StudentItem({
           _id: `STUDENT-ITEM-${uuidv4()}`,
           professor_id: profItem.professor_id,
@@ -440,6 +352,34 @@ exports.addStudentItem = async (req, res) => {
         });
 
         const savedStudentItem = await studentTimeObject.save();
+
+        // format times
+        const formattedStartTime = newItemStartTime.toLocaleString();
+        const formattedEndTime = newItemEndTime.toLocaleString();
+
+        // send email to professor
+        const professor = await User.findOne({
+          _id: profItem.professor_id,
+        });
+
+        if (professor) {
+          await sendEmail({
+            to: professor.email,
+            subject: "New Appointment Booked",
+            text: `Hi ${professor.name}, \n\n A student (${verifiedToken.user.name} ${verifiedToken.user.lastname}) has booked an appointment with you from ${formattedStartTime} to ${formattedEndTime}`,
+            html: `<p>Hi ${professor.name}</p><p>Student <strong>${verifiedToken.user.name} ${verifiedToken.user.lastname}</strong> has booked an appointment with you from <strong>${formattedStartTime}</strong> to <strong>${formattedEndTime}</strong>.</p>`,
+          });
+        }
+
+        // send email to student
+        await sendEmail({
+          to: verifiedToken.user.email,
+          subject: "Appointment Confirmed",
+          text: `Hi ${verifiedToken.user.name},\n\nYour appointment has been booked from ${formattedStartTime} to ${formattedEndTime} with ${professor.name} ${professor.lastname}.`,
+          html: `<p>Hi <strong>${verifiedToken.user.name}</strong>,</p>
+             <p>Your appointment with ${professor.name} ${professor.lastname} has been confirmed from <strong>${formattedStartTime}</strong> to <strong>${formattedEndTime}</strong>.</p>`,
+        });
+
         res.send(studentTimeObject);
       } else {
         return sendError(res, ERRORS.ERROR_INVALID_TIME_FRAME);
@@ -502,14 +442,12 @@ exports.removeStudentItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_MISSING_FIELD_ITEM_ID);
     }
 
-    // const itemIdx = studentItems.findIndex(x => x._id === itemId)
     const itemIdx = await StudentItem.findOne({ _id: itemId });
 
     if (itemIdx === -1) {
       return sendError(res, ERRORS.ERROR_ITEM_NOT_FOUND);
     }
 
-    // if (verifiedToken.user.occupation === OCCUPATION_STATUS.STUDENT && studentItems[itemIdx].student_id !== userId) {
     if (
       verifiedToken.user.occupation === OCCUPATION_STATUS.STUDENT &&
       itemIdx.student_id !== userId
@@ -517,7 +455,6 @@ exports.removeStudentItem = async (req, res) => {
       return sendError(res, ERRORS.ERROR_ITEM_CANNOT_BE_DELETED);
     }
 
-    // studentItems[itemIdx] = {...studentItems[itemIdx], active: ACTIVE.NOT_ACTIVE}
     itemIdx.active = false;
     await itemIdx.save();
 

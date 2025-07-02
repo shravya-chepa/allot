@@ -7,19 +7,7 @@ const { OCCUPATION_STATUS } = require("../utilities/constants");
 const validate = require("../utilities/validate");
 const authorization = require("../utilities/authorization");
 
-const mongoose = require("mongoose");
-
-const userSchema = new mongoose.Schema({
-  _id: String,
-  name: String,
-  lastname: String,
-  password: String,
-  email: String,
-  occupation: String,
-  registered_at: Date,
-});
-
-const User = mongoose.model("User", userSchema);
+const UserItem = require("../models/userItem")
 
 // TODO: TEMPORARY
 const users = [];
@@ -43,7 +31,7 @@ exports.register = async (req, res) => {
 
     // TODO: CHECK IF EMAIL ALREADY EXISTS IN DB
     // const found = users.find((x) => x.email === email);
-    const found = await User.findOne({ email }); // shag
+    const found = await UserItem.findOne({ email }); // shag
 
     if (found) {
       return sendError(res, ERRORS.ERROR_EMAIL_ALREADY_IN_USE);
@@ -74,10 +62,8 @@ exports.register = async (req, res) => {
       occupation,
       registered_at: new Date().toISOString(),
     };
-    // users.push(new_user);
-    // await User.create(new_user); // shag
-    // console.log(User.find);
-    const user = new User(new_user);
+;
+    const user = new UserItem(new_user);
     await user.save();
 
     res.send({ ...new_user, password: undefined }); // password not send for security reasons
@@ -99,7 +85,7 @@ exports.login = async (req, res) => {
   try {
     // TODO: FIND USER IN DATABASE
     // const user = users.find(x => x.email === email)
-    const user = await User.findOne({ email });
+    const user = await UserItem.findOne({ email });
 
     if (!user) {
       console.log("user not found");
@@ -136,7 +122,7 @@ exports.getProfile = async (req, res) => {
 
   try {
     // const user = users.find(user => user._id === userId)
-    const user = await User.findOne({ _id: userId }).lean();
+    const user = await UserItem.findOne({ _id: userId }).lean();
 
     if (!user) return sendError(res, ERRORS.ERROR_NO_SUCH_USER_FOUND, 404);
 
@@ -160,7 +146,7 @@ exports.getProfessors = async (req, res) => {
     // const professors = users.filter(user => user.occupation === OCCUPATION_STATUS.PROFESSOR).map(user =>
     //     ({name: user.name, lastname: user.lastname, email: user.email, _id: user._id})
     // )
-    const professors = await User.find(
+    const professors = await UserItem.find(
       { occupation: OCCUPATION_STATUS.PROFESSOR },
       { name: 1, lastname: 1, email: 1, _id: 1 }
     );
